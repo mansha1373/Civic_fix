@@ -1,0 +1,49 @@
+/* ---------- Readability: darker, fuller-contrast text ---------- */
+.cf{--cocoa:#3a1d24;color:#2e171d}
+.cf h1,.cf h2,.cf h3,.cf strong{color:#2e171d}
+.cf em{color:#7a5800}
+.cf-civic-copy h1 em{color:#3a1d24}
+
+/* remove see-through text */
+.cf-intro,.cf-demo,.cf-feature p,.cf-civic-promise,.cf-report-top>span:last-child,
+.cf-report-float p,.cf-impact-head small,.cf-map-legend span,.cf-review-score span,
+.cf-review-person small,.cf-dash-user,.cf-dash-empty p,.cf-auth-pitch p{opacity:1;color:#3a1d24}
+.cf-report-top>span:last-child{color:#5a3a41}
+.cf-demo{background:#fffaec;font-size:12px}
+
+/* small text a touch larger */
+.cf-civic-description{font-size:16px;color:#2e171d;font-weight:500}
+.cf-civic-promise{font-size:13px;font-weight:600}
+.cf-secondary{font-size:13px;font-weight:600;border-bottom:2px solid #3a1d24}
+.cf-pill,.cf-civic-copy .cf-pill{font-size:12px;font-weight:600;color:#2e171d;border-color:#3a1d2455;background:#fffaec}
+.cf-report-float p,.cf-report-bottom,.cf-status-tag,.cf-report-top small{font-size:12px;color:#2e171d}
+.cf-ticket small{font-size:12px}
+.cf-strip span{font-size:16px;color:#2e171d}
+.cf-impact-head>p{font-size:14px;color:#2e171d}
+.cf-impact-head small{font-size:12px}
+.cf-review-person small,.cf-review-score span{font-size:12px}
+.cf-demo-review blockquote{font-size:14px;color:#2e171d}
+.cf-feature p{font-size:13px}
+.cf-feature small{color:#6b4d00;font-size:12px;font-weight:600}
+.cf-map-label{color:#3a1d24;font-weight:600;font-size:11px}
+.cf-map-toolbar{font-size:12px;color:#2e171d}
+.cf-map-toolbar b{color:#6b4d00}
+.cf-map-legend{font-size:12px;color:#2e171d}
+.cf-auth-sub,.cf-auth-back{color:#3a1d24}
+.cf-form label{color:#2e171d}
+.cf-form input::placeholder{color:#7a666b}
+.cf-pass button{color:#6b4d00}
+
+/* big step numerals: keep the colour progression but darker */
+.cf-step:nth-child(2){color:#7a5800}
+.cf-step:nth-child(3){color:#8f6a00}
+.cf-step:nth-child(4){color:#a47b00}
+.cf-step:nth-child(5){color:#b98c00}
+.cf-step-copy,.cf-step-copy p,.cf-step-copy small{color:#2e171d}
+
+/* footer (dark background): fully light text */
+.cf-foot-about p,.cf-foot-grid nav a,.cf-foot-grid nav span,.cf-foot-bottom{opacity:1;color:#FFFAEC}
+.cf-foot-about p,.cf-foot-grid nav a,.cf-foot-grid nav span{font-size:15px}
+.cf-foot-bottom{font-size:13px}
+.cf-footer h2,.cf-footer h4{color:#FFFAEC}.cf-footer h4{color:#ffc61a}
+.cf-footer strong,.cf-footer h3,.cf-loader strong{color:#FFFAEC}

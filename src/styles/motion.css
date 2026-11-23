@@ -1,0 +1,7 @@
+/* Subtle float on the two report cards only. Uses the `translate` property so it
+   stacks with the scroll-driven transform. */
+@keyframes cf-float{0%,100%{translate:0 0}50%{translate:0 -9px}}
+.cf-report-one{animation:cf-float 7s ease-in-out infinite}
+.cf-report-two{animation:cf-float 8s ease-in-out -3s infinite}
+.cf-auth-card{animation:cf-float 7s ease-in-out infinite}
+@media(prefers-reduced-motion:reduce){.cf-report-float,.cf-auth-card{animation:none!important}}
