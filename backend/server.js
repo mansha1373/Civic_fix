@@ -6,6 +6,7 @@ import helmet from "helmet"
 import rateLimit from "express-rate-limit"
 import { connectDB } from "./config/db.js"
 import authRoutes from "./routes/authRoutes.js"
+import complaintRoutes from "./routes/complaintRoutes.js"
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js"
 
 // Load environment variables
@@ -70,6 +71,9 @@ app.get("/api/health", (req, res) => {
 
 // Mount Auth routes with rate limiting
 app.use("/api/auth", authLimiter, authRoutes)
+
+// Mount Complaint routes
+app.use("/api/complaints", complaintRoutes)
 
 // Error handling middleware
 app.use(notFound)

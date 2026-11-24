@@ -6,6 +6,7 @@ import Sidebar from "./Sidebar.jsx"
 import Topbar from "./Topbar.jsx"
 import { mockCurrentUser, mockReports, mockNotifications } from "../../data/mockReports.js"
 import {
+  getReports,
   createReport,
   createNotification,
   markNotificationRead as serviceMarkRead,
@@ -106,6 +107,21 @@ export default function DashboardLayout() {
     email: user?.email || profileData?.email || "citizen@civicfix.in"
   }
 
+  // Synchronize reports from backend on mount
+  useEffect(() => {
+    let isMounted = true
+    getReports()
+      .then((liveReports) => {
+        if (isMounted && Array.isArray(liveReports) && liveReports.length > 0) {
+          setReports(liveReports)
+        }
+      })
+      .catch(() => {})
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
   const handleLogout = () => {
     logout()
     if (typeof waveNavigate === "function") {
@@ -116,24 +132,25 @@ export default function DashboardLayout() {
   }
 
   const addReport = async (newReport) => {
-    const updated = [newReport, ...reports]
-    setReports(updated)
+    // Call service to persist to backend MongoDB
+    const res = await createReport(newReport)
+    const savedReport = res?.data || newReport
 
-    // Call service to persist and generate automatic notification
-    await createReport(newReport)
+    setReports((prev) => [savedReport, ...prev.filter((r) => r.id !== savedReport.id)])
 
     // Also update notification state in memory
     const autoNotif = {
       id: `notif-auto-${Date.now()}`,
       title: "Complaint Registered Successfully",
-      message: `Your complaint #${newReport.id} (${newReport.title}) was received and transmitted to ${newReport.department || "Municipal Wing"}.`,
+      message: `Your complaint #${savedReport.id} (${savedReport.title}) was received and transmitted to ${savedReport.department || "Municipal Wing"}.`,
       time: "Just now",
       date: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
       read: false,
       type: "submission",
-      reportId: newReport.id
+      reportId: savedReport.id
     }
     setNotifications((prev) => [autoNotif, ...prev])
+    return savedReport
   }
 
   const addNotification = async (newNotif) => {

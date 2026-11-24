@@ -64,3 +64,42 @@ export async function protect(req, res, next) {
     })
   }
 }
+
+/**
+ * Optional Authentication Middleware
+ * If a token is provided in cookies or headers, validates and attaches req.user.
+ * If no token is provided, proceeds without error.
+ */
+export async function optionalAuth(req, res, next) {
+  let token
+
+  if (req.cookies && req.cookies.jwt) {
+    token = req.cookies.jwt
+  } else if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer ")
+  ) {
+    token = req.headers.authorization.split(" ")[1]
+  }
+
+  if (!token) {
+    return next()
+  }
+
+  try {
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET || "civicfix_secret_jwt_key_fallback_32char"
+    )
+    const user = await User.findById(decoded.id).select("-password")
+    if (user) {
+      req.user = user
+      req.userId = user._id
+      req.userRole = user.role
+    }
+  } catch {
+    // Ignore invalid optional token
+  }
+
+  next()
+}

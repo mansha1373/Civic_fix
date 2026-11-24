@@ -198,25 +198,25 @@ export default function ReportIssue() {
       ]
     }
 
-    // Add report to state and localStorage
-    addReport(newReport)
+    // Add report to state, localStorage, and MongoDB backend
+    const saved = await addReport(newReport)
 
     // Generate a notification for the citizen
     if (addNotification) {
       addNotification({
         id: `notif-${Date.now()}`,
         title: "Complaint Logged",
-        message: `Your report #${newId} (${title.slice(0, 35)}...) has been submitted to ${selectedCatObj.department}.`,
+        message: `Your report #${saved?.id || newId} (${title.slice(0, 35)}...) has been submitted to ${selectedCatObj.department}.`,
         time: "Just now",
         read: false,
         type: "review",
-        reportId: newId,
+        reportId: saved?.id || newId,
         isUserCreated: true
       })
     }
 
     setIsSubmitting(false)
-    setSubmittedReport(newReport)
+    setSubmittedReport(saved || newReport)
     window.scrollTo({ top: 100, behavior: "smooth" })
   }
 

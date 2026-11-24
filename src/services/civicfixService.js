@@ -15,6 +15,7 @@
  */
 
 import { mockReports, mockNotifications, mockCurrentUser } from "../data/mockReports.js"
+import api from "./api.js"
 
 const STORAGE_KEYS = {
   REPORTS: "civicfix_custom_reports",
@@ -28,15 +29,34 @@ const STORAGE_KEYS = {
 // ==========================================
 
 /**
- * Fetch all reports (custom citizen reports + regional mock reports)
+ * Fetch all reports (custom citizen reports from backend MongoDB + regional mock reports)
  */
 export async function getReports() {
+  try {
+    // 1. Try fetching live reports from backend MongoDB
+    const res = await api.get("/complaints")
+    if (res.data?.success && Array.isArray(res.data.complaints)) {
+      const backendComplaints = res.data.complaints
+      const backendIds = new Set(backendComplaints.map((r) => r.id))
+      const remainingMock = mockReports.filter((r) => !backendIds.has(r.id))
+      const merged = [...backendComplaints, ...remainingMock]
+      try {
+        localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(backendComplaints))
+      } catch {
+        // quota handled
+      }
+      return merged
+    }
+  } catch (err) {
+    console.warn("[CivicFix Service] Backend unreachable for complaints, trying local cache:", err.message)
+  }
+
+  // 2. Fallback to localStorage cache and mock dataset
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.REPORTS)
     if (raw) {
       const customReports = JSON.parse(raw)
       if (Array.isArray(customReports)) {
-        // Merge custom reports (newest first) with base mock reports
         const customIds = new Set(customReports.map((r) => r.id))
         const remainingMock = mockReports.filter((r) => !customIds.has(r.id))
         return [...customReports, ...remainingMock]
@@ -52,48 +72,74 @@ export async function getReports() {
  * Fetch a specific report by its ticket ID
  */
 export async function getReportById(id) {
+  try {
+    const res = await api.get(`/complaints/${encodeURIComponent(id)}`)
+    if (res.data?.success && res.data.complaint) {
+      return res.data.complaint
+    }
+  } catch {
+    // Fallback to local list
+  }
   const allReports = await getReports()
   return allReports.find((r) => r.id === id) || null
 }
 
 /**
- * Create and persist a new civic report
+ * Create and persist a new civic report via backend MongoDB
  */
 export async function createReport(newReport) {
   try {
-    const allReports = await getReports()
-    const updatedAll = [newReport, ...allReports]
+    let savedReport = newReport
 
-    // Filter user-created reports for localStorage storage
-    const customOnly = updatedAll.filter((r) => r.isUserCreated)
+    // 1. Send complaint to Node/Express/MongoDB backend
     try {
-      localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(customOnly))
-    } catch (quotaErr) {
-      console.warn("[CivicFix Service] LocalStorage quota exceeded, storing trimmed report data:", quotaErr)
-      // Strip heavy image payloads if quota is tight
-      const trimmed = customOnly.map((r) => ({
-        ...r,
-        images: r.images?.slice(0, 1) || []
-      }))
-      localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(trimmed))
+      const payload = {
+        title: newReport.title,
+        description: newReport.description,
+        category: newReport.category,
+        categoryKey: newReport.categoryKey || "other",
+        location: newReport.location,
+        coordinates: newReport.coordinates,
+        pincode: newReport.pincode || "160017",
+        urgency: newReport.urgency || "High",
+        images: newReport.images || [],
+        image: newReport.image
+      }
+
+      const res = await api.post("/complaints", payload)
+      if (res.data?.success && res.data.complaint) {
+        savedReport = res.data.complaint
+      }
+    } catch (apiErr) {
+      console.warn("[CivicFix Service] Backend API error, using local fallback:", apiErr.message)
     }
 
-    // Automatically generate confirmation notification
+    // 2. Cache in localStorage for immediate offline persistence
+    try {
+      const raw = localStorage.getItem(STORAGE_KEYS.REPORTS)
+      const existing = raw ? JSON.parse(raw) : []
+      const updatedCustom = [savedReport, ...existing.filter((r) => r.id !== savedReport.id)]
+      localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(updatedCustom))
+    } catch (quotaErr) {
+      console.warn("[CivicFix Service] LocalStorage quota exceeded:", quotaErr)
+    }
+
+    // 3. Automatically generate confirmation notification
     await createNotification({
       id: `notif-auto-${Date.now()}`,
       title: "Complaint Registered Successfully",
-      message: `Your complaint #${newReport.id} (${newReport.title}) was received and transmitted to ${newReport.department || "Municipal Wing"}.`,
+      message: `Your complaint #${savedReport.id} (${savedReport.title}) was received and transmitted to ${savedReport.department || "Municipal Wing"}.`,
       time: "Just now",
       date: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
       read: false,
       type: "submission",
-      reportId: newReport.id
+      reportId: savedReport.id
     })
 
-    return { success: true, data: newReport }
+    return { success: true, data: savedReport }
   } catch (err) {
     console.error("[CivicFix Service] Failed to create report:", err)
-    return { success: false, error: err.message }
+    return { success: false, error: err.message, data: newReport }
   }
 }
 
