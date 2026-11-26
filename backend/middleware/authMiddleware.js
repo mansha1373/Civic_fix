@@ -103,3 +103,32 @@ export async function optionalAuth(req, res, next) {
 
   next()
 }
+
+/**
+ * Role-Based Authorization Middleware
+ * Verifies that the authenticated user possesses one of the allowed roles.
+ * Must be mounted AFTER protect middleware.
+ */
+export function authorize(...roles) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: "Not authorized, authentication required."
+      })
+    }
+
+    if (!roles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: `Forbidden: Access restricted to ${roles.join(", ")} role(s). Current role: ${req.user.role}.`
+      })
+    }
+
+    next()
+  }
+}
+
+export const requireAdmin = authorize("admin")
+export const requireCitizen = authorize("citizen")
+

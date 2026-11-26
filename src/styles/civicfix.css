@@ -60,3 +60,297 @@ body{margin:0;background:#FFFAEC}
 @media(prefers-reduced-motion:reduce){.cf *{scroll-behavior:auto!important}.cf.runtime-reduced .cf-track{transform:none!important;flex-wrap:wrap;width:100%}.cf.runtime-reduced .cf-step{width:100%}.cf-loader{display:none}}
 
 @media(max-width:767px){.cf-report-bottom{flex-wrap:wrap;gap:6px}.cf-report-top small{letter-spacing:.04em}}
+
+/* ============================================================
+   Steps to Change Society: Full-Width Seamless 5-Step Automatic Slider
+   ============================================================ */
+.cf-steps-fullwidth-section {
+  position: relative;
+  overflow: hidden;
+  background: var(--cream);
+  padding: 85px 0 95px;
+  width: 100%;
+  border-top: 1px solid #EAE3D540;
+  border-bottom: 1px solid #EAE3D560;
+}
+
+.cf-steps-fullwidth-inner {
+  width: 100%;
+  position: relative;
+  margin: 0 auto;
+}
+
+.cf-steps-main-header {
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto 35px;
+  padding: 0 24px;
+  position: relative;
+  z-index: 2;
+}
+
+.cf-steps-main-header h2 {
+  font-family: Fraunces, Georgia, serif;
+  font-size: clamp(34px, 4.4vw, 58px);
+  font-weight: 300;
+  line-height: 1.12;
+  letter-spacing: -0.025em;
+  margin: 16px auto 14px;
+  color: var(--cocoa);
+}
+
+.cf-steps-main-subhead {
+  font-size: 13px;
+  line-height: 1.75;
+  color: #695154;
+  margin: 0 auto;
+  max-width: 500px;
+}
+
+/* Full-Width Slider Viewport */
+.cf-fullwidth-slider-viewport {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  margin: 30px 0 40px;
+  z-index: 2;
+}
+
+.cf-fullwidth-slider-track {
+  display: flex;
+  width: 100%;
+  transition: transform 0.85s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform;
+}
+
+.cf-fullwidth-slide {
+  flex: 0 0 100%;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0 6%;
+  opacity: 0.35;
+  transform: scale(0.97);
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.cf-fullwidth-slide.is-active {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.cf-step-presentation {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: clamp(30px, 6vw, 75px);
+  width: 100%;
+  max-width: 1280px;
+  min-height: 360px;
+  padding: 24px 0;
+  box-sizing: border-box;
+}
+
+.cf-step-huge-num-box {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  min-width: clamp(140px, 20vw, 290px);
+}
+
+.cf-step-huge-num {
+  font: 400 clamp(160px, 21vw, 360px)/0.78 Fraunces, Georgia, serif;
+  letter-spacing: -0.04em;
+  margin: 0;
+  line-height: 0.76;
+  user-select: none;
+}
+
+/* 5 Original Step Theme Accents */
+.cf-step-theme-1 .cf-step-huge-num { color: #59343B; }
+.cf-step-theme-2 .cf-step-huge-num { color: #A68500; }
+.cf-step-theme-3 .cf-step-huge-num { color: #E5B52B; }
+.cf-step-theme-4 .cf-step-huge-num { color: #C97E1B; }
+.cf-step-theme-5 .cf-step-huge-num { color: #236336; }
+
+.cf-step-detail-box {
+  max-width: 580px;
+  padding-bottom: 24px;
+  text-align: left;
+}
+
+.cf-step-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.cf-step-status-tag {
+  display: inline-block;
+  border: 1px solid #EAE3D5;
+  background: #FFF9EA;
+  color: #59343B;
+  border-radius: 40px;
+  padding: 5px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  box-shadow: 0 1px 3px rgba(40, 23, 25, 0.04);
+}
+
+.cf-step-index-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #695154;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cf-step-main-title {
+  font-family: Fraunces, Georgia, serif;
+  font-size: clamp(32px, 4vw, 54px);
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  color: #281719;
+  margin: 0 0 16px 0;
+  line-height: 1.1;
+}
+
+.cf-step-main-desc {
+  font-size: clamp(15px, 1.5vw, 19px);
+  line-height: 1.7;
+  color: #59343B;
+  margin: 0 0 26px 0;
+  max-width: 520px;
+}
+
+/* 4-Second Automatic Progression Bar */
+.cf-step-progression-bar {
+  width: 100%;
+  max-width: 460px;
+}
+
+.cf-step-progress-track {
+  height: 3px;
+  background: #EAE3D588;
+  border-radius: 999px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.cf-step-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: #FFD20A;
+  border-radius: 999px;
+  animation: progressFill 4s linear forwards;
+}
+
+@keyframes progressFill {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+/* Full-Width Overview Strip for all 5 Stages */
+.cf-steps-overview-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  max-width: 1280px;
+  margin: 20px auto 0;
+  padding: 0 5%;
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+.cf-overview-step-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 0;
+  opacity: 0.45;
+  transition: opacity 0.4s ease;
+}
+
+.cf-overview-step-tab.active {
+  opacity: 1;
+}
+
+.cf-tab-indicator {
+  height: 3px;
+  width: 100%;
+  background: #EAE3D5;
+  border-radius: 999px;
+  transition: background-color 0.4s ease, height 0.3s ease;
+}
+
+.cf-overview-step-tab.active .cf-tab-indicator {
+  background: #FFD20A;
+  height: 4px;
+  box-shadow: 0 2px 8px rgba(255, 210, 10, 0.4);
+}
+
+.cf-tab-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  text-align: left;
+}
+
+.cf-tab-num {
+  font-size: 11px;
+  font-weight: 700;
+  color: #695154;
+  letter-spacing: 0.05em;
+}
+
+.cf-tab-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #281719;
+}
+
+.cf-tab-status {
+  font-size: 11px;
+  color: #695154;
+  letter-spacing: 0.02em;
+}
+
+/* Responsive adjustments */
+@media (max-width: 860px) {
+  .cf-steps-fullwidth-section {
+    padding: 60px 0 70px;
+  }
+  .cf-step-presentation {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    min-height: auto;
+  }
+  .cf-step-huge-num-box {
+    min-width: auto;
+  }
+  .cf-step-huge-num {
+    font-size: clamp(90px, 22vw, 150px);
+    line-height: 0.85;
+  }
+  .cf-step-detail-box {
+    padding-bottom: 10px;
+  }
+  .cf-steps-overview-strip {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cf-fullwidth-slider-track {
+    transition: none !important;
+  }
+  .cf-step-progress-fill {
+    animation: none !important;
+    width: 100% !important;
+  }
+}

@@ -3,6 +3,7 @@ import { useParams, Link, useOutletContext, useNavigate } from "react-router-dom
 import L from "leaflet"
 import { Icon } from "../components/dashboard/Icons.jsx"
 import StatusBadge from "../components/dashboard/StatusBadge.jsx"
+import { getReportById } from "../services/civicfixService.js"
 
 // Custom SVG Pin Icon for Leaflet
 const createCivicPinIcon = () => {
@@ -28,12 +29,45 @@ const createCivicPinIcon = () => {
 export default function ReportDetails() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { reports } = useOutletContext()
+  const { reports = [] } = useOutletContext() || {}
 
-  const report = reports.find((r) => r.id === id) || reports[0]
+  const [report, setReport] = useState(() => reports.find((r) => r.id === id || r.complaintId === id) || null)
+  const [loading, setLoading] = useState(!report)
+  const [error, setError] = useState("")
   const [selectedImg, setSelectedImg] = useState(null)
   const mapContainerRef = useRef(null)
   const mapInstance = useRef(null)
+
+  // Fetch verified report from backend if not in cache or for live freshness
+  useEffect(() => {
+    let isMounted = true
+    async function fetchComplaint() {
+      try {
+        setLoading(true)
+        setError("")
+        const liveReport = await getReportById(id)
+        if (isMounted && liveReport) {
+          setReport(liveReport)
+        }
+      } catch (err) {
+        if (isMounted) {
+          setError(err.message || `No complaint found with ID "${id}"`)
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false)
+        }
+      }
+    }
+
+    if (id) {
+      fetchComplaint()
+    }
+
+    return () => {
+      isMounted = false
+    }
+  }, [id])
 
   const activePhoto =
     selectedImg ||
@@ -73,7 +107,7 @@ export default function ReportDetails() {
 
       marker.bindPopup(`
         <div style="font-family: 'Inter', sans-serif; padding: 4px; max-width: 200px;">
-          <strong style="color: #59343B; font-size: 12px; display: block;">${report.id}</strong>
+          <strong style="color: #59343B; font-size: 12px; display: block;">${report.id || report.complaintId}</strong>
           <span style="font-size: 11px; font-weight: 600; color: #281719; display: block; margin: 2px 0;">${report.category}</span>
           <p style="font-size: 11px; color: #5e474b; margin: 0; line-height: 1.3;">${report.location}</p>
         </div>
@@ -97,17 +131,48 @@ export default function ReportDetails() {
     }
   }, [report])
 
-  if (!report) {
+  if (loading) {
     return (
-      <div className="cf-empty-state-card">
-        <h2>Report Not Found</h2>
-        <p>The complaint ID "{id}" could not be located.</p>
+      <div style={{ padding: "60px", textAlign: "center", color: "#695154" }}>
+        <p>Loading complaint details from MongoDB Atlas...</p>
+      </div>
+    )
+  }
+
+  if (error || !report) {
+    return (
+      <div className="cf-empty-state-card" style={{
+        backgroundColor: "#FFFFFF",
+        border: "1px solid #EAE3D5",
+        borderRadius: "1.25rem",
+        padding: "48px 24px",
+        textAlign: "center"
+      }}>
+        <div style={{
+          width: "48px",
+          height: "48px",
+          borderRadius: "12px",
+          backgroundColor: "#FAECEE",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          margin: "0 auto 16px",
+          color: "#8C2329"
+        }}>
+          <Icon name="alertCircle" size={24} color="#8C2329" />
+        </div>
+        <h2 style={{ fontSize: "18px", fontWeight: "700", color: "#281719", marginBottom: "8px" }}>
+          {error.includes("denied") ? "Access Denied" : "Complaint Not Found"}
+        </h2>
+        <p style={{ fontSize: "13px", color: "#695154", maxWidth: "420px", margin: "0 auto 20px" }}>
+          {error || `The complaint ID "${id}" could not be located in your records.`}
+        </p>
         <button
           type="button"
           className="cf-button"
           onClick={() => navigate("/dashboard/reports")}
         >
-          Back to Reports
+          Return to My Reports
         </button>
       </div>
     )
@@ -256,7 +321,9 @@ export default function ReportDetails() {
             </span>
             <span>
               <Icon name="mapPin" size={15} />
-              {report.location}
+              {typeof report.location === "object"
+                ? (report.location?.address || report.location?.sector || "Sector 17, Chandigarh")
+                : (report.location || "Sector 17, Chandigarh")}
             </span>
             <span>
               <Icon name="thumbsUp" size={15} />
@@ -345,7 +412,11 @@ export default function ReportDetails() {
 
             <div className="cf-detail-location-bar">
               <div>
-                <strong>{report.location}</strong>
+                <strong>
+                  {typeof report.location === "object"
+                    ? (report.location?.address || report.location?.sector || "Sector 17, Chandigarh")
+                    : (report.location || "Sector 17, Chandigarh")}
+                </strong>
                 {report.pincode && <span> (PIN: {report.pincode})</span>}
               </div>
               {report.coordinates && (

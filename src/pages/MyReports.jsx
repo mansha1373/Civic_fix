@@ -60,7 +60,9 @@ export default function MyReports() {
       !query ||
       (report.id && report.id.toLowerCase().includes(query)) ||
       (report.title && report.title.toLowerCase().includes(query)) ||
-      (report.location && report.location.toLowerCase().includes(query))
+      (typeof report.location === "object"
+        ? (report.location?.address || report.location?.sector || "").toLowerCase().includes(query)
+        : (report.location && String(report.location).toLowerCase().includes(query)))
 
     return matchesStatus && matchesCategory && matchesSearch
   })
@@ -314,7 +316,11 @@ export default function MyReports() {
                 {/* Location */}
                 <div className="cf-report-location">
                   <Icon name="mapPin" size={15} />
-                  <span>{report.location}</span>
+                  <span>
+                    {typeof report.location === "object"
+                      ? (report.location?.address || report.location?.sector || "Sector 17, Chandigarh")
+                      : (report.location || "Sector 17, Chandigarh")}
+                  </span>
                 </div>
 
                 {/* Dates: Submission Date & Last Updated Date */}

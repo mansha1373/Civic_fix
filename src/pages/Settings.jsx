@@ -1,5 +1,6 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import { Icon } from "../components/dashboard/Icons.jsx"
+import { getUserSettings, updateUserSettings } from "../services/civicfixService.js"
 
 export default function Settings() {
   const [emailAlerts, setEmailAlerts] = useState(true)
@@ -7,12 +8,56 @@ export default function Settings() {
   const [weeklyDigest, setWeeklyDigest] = useState(false)
   const [language, setLanguage] = useState("en")
   const [locationPrivacy, setLocationPrivacy] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [error, setError] = useState("")
 
-  const handleSave = (e) => {
+  // Fetch settings from MongoDB Atlas on mount
+  useEffect(() => {
+    let isMounted = true
+    async function loadSettings() {
+      try {
+        const data = await getUserSettings()
+        if (isMounted && data) {
+          if (data.emailAlerts !== undefined) setEmailAlerts(data.emailAlerts)
+          if (data.smsUpdates !== undefined) setSmsUpdates(data.smsUpdates)
+          if (data.weeklyDigest !== undefined) setWeeklyDigest(data.weeklyDigest)
+          if (data.language) setLanguage(data.language)
+          if (data.locationPrivacy !== undefined) setLocationPrivacy(data.locationPrivacy)
+        }
+      } catch (err) {
+        console.error("Failed to load settings:", err)
+      }
+    }
+    loadSettings()
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  const handleSave = async (e) => {
     e.preventDefault()
-    setSaved(true)
-    setTimeout(() => setSaved(false), 3000)
+    setError("")
+    setSaving(true)
+    try {
+      const res = await updateUserSettings({
+        emailAlerts,
+        smsUpdates,
+        weeklyDigest,
+        language,
+        locationPrivacy
+      })
+      if (res.success) {
+        setSaved(true)
+        setTimeout(() => setSaved(false), 3000)
+      } else {
+        setError(res.error || "Failed to update settings in database")
+      }
+    } catch (err) {
+      setError(err.message || "Failed to update settings")
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -22,7 +67,7 @@ export default function Settings() {
           <span className="cf-pill">ACCOUNT PREFERENCES</span>
           <h1 className="cf-page-title">Settings</h1>
           <p className="cf-page-subtitle">
-            Configure notifications, SMS alerts for complaint status, language and privacy preferences.
+            Configure notifications, SMS alerts for complaint status, language and privacy preferences in MongoDB Atlas.
           </p>
         </div>
       </div>
@@ -31,7 +76,14 @@ export default function Settings() {
         {saved && (
           <div className="cf-alert success" style={{ marginBottom: "20px" }}>
             <Icon name="checkCircle" size={18} color="#15803D" />
-            <span>Preferences saved successfully!</span>
+            <span>Preferences saved successfully in MongoDB Atlas!</span>
+          </div>
+        )}
+
+        {error && (
+          <div className="cf-alert" style={{ marginBottom: "20px", backgroundColor: "#FAECEE", color: "#8C2329" }}>
+            <Icon name="alertCircle" size={18} color="#8C2329" />
+            <span>{error}</span>
           </div>
         )}
 
@@ -144,8 +196,8 @@ export default function Settings() {
           </div>
 
           <div className="cf-form-actions" style={{ marginTop: "24px" }}>
-            <button type="submit" className="cf-button">
-              Save All Preferences
+            <button type="submit" disabled={saving} className="cf-button">
+              {saving ? "Saving Preferences..." : "Save All Preferences"}
             </button>
           </div>
         </form>

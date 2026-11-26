@@ -10,6 +10,7 @@ import "./styles/auth.css"
 import "./styles/readability.css"
 import "./styles/map.css"
 import "./styles/dashboard.css"
+import "./styles/admin.css"
 
 createRoot(document.getElementById("root")).render(
   <React.StrictMode>

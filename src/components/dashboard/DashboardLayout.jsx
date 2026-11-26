@@ -1,18 +1,18 @@
-import React, { useState, useEffect } from "react"
+import React, { useState, useEffect, useCallback } from "react"
 import { Outlet, useNavigate } from "react-router-dom"
 import { useAuth } from "../../auth/AuthContext.jsx"
 import { useWaveNavigate } from "../TransitionProvider.jsx"
 import Sidebar from "./Sidebar.jsx"
 import Topbar from "./Topbar.jsx"
-import { mockCurrentUser, mockReports, mockNotifications } from "../../data/mockReports.js"
 import {
   getReports,
   createReport,
-  createNotification,
+  getNotifications,
   markNotificationRead as serviceMarkRead,
   markAllNotificationsRead as serviceMarkAllRead,
   deleteNotification as serviceDeleteNotif,
-  updateUserProfile as serviceUpdateProfile
+  updateUserProfile as serviceUpdateProfile,
+  getUserProfile
 } from "../../services/civicfixService.js"
 
 export default function DashboardLayout() {
@@ -23,104 +23,81 @@ export default function DashboardLayout() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
 
-  // State for user reports to allow adding new issues dynamically and persisting to localStorage
-  const [reports, setReports] = useState(() => {
+  // Genuine state directly fetched from MongoDB Atlas (initial empty arrays)
+  const [reports, setReports] = useState([])
+  const [notifications, setNotifications] = useState([])
+  const [profileData, setProfileData] = useState({})
+  const [loadingReports, setLoadingReports] = useState(true)
+  const [loadingNotifs, setLoadingNotifs] = useState(true)
+
+  // Fetch citizen reports from MongoDB
+  const fetchReports = useCallback(async () => {
     try {
-      const saved = localStorage.getItem("civicfix_custom_reports")
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed)) {
-          const customIds = new Set(parsed.map((r) => r.id))
-          const remainingMock = mockReports.filter((r) => !customIds.has(r.id))
-          return [...parsed, ...remainingMock]
-        }
-      }
-    } catch {
-      // fallback
-    }
-    return mockReports
-  })
-
-  // State for notifications to reflect newly filed issues in real-time
-  const [notifications, setNotifications] = useState(() => {
-    try {
-      const saved = localStorage.getItem("civicfix_custom_notifications")
-      if (saved) {
-        const parsed = JSON.parse(saved)
-        if (Array.isArray(parsed)) return parsed
-      }
-    } catch {
-      // fallback
-    }
-    return mockNotifications
-  })
-
-  // State for user profile with localStorage persistence
-  const [profileData, setProfileData] = useState(() => {
-    try {
-      const userKey = user?.email ? `civicfix_profile_${user.email.toLowerCase()}` : "civicfix_user_profile"
-      const saved = localStorage.getItem(userKey)
-      if (saved) {
-        return JSON.parse(saved)
-      }
-    } catch {
-      // fallback
-    }
-    return {}
-  })
-
-  // Synchronize profile data whenever the authenticated user changes
-  useEffect(() => {
-    if (user?.email) {
-      try {
-        const userKey = `civicfix_profile_${user.email.toLowerCase()}`
-        const saved = localStorage.getItem(userKey)
-        if (saved) {
-          setProfileData(JSON.parse(saved))
-        } else {
-          setProfileData({})
-        }
-      } catch {
-        setProfileData({})
-      }
-    }
-  }, [user?.email])
-
-  const updateProfile = async (updatedFields) => {
-    const merged = { ...profileData, ...updatedFields }
-    setProfileData(merged)
-    if (user?.email) {
-      const userKey = `civicfix_profile_${user.email.toLowerCase()}`
-      localStorage.setItem(userKey, JSON.stringify(merged))
-    }
-    localStorage.setItem("civicfix_user_profile", JSON.stringify(merged))
-    await serviceUpdateProfile(updatedFields)
-  }
-
-  // Active citizen profile dynamically merged:
-  // Base template -> profile edits -> authenticated user (name, email ALWAYS strictly from login)
-  const activeUser = {
-    ...mockCurrentUser,
-    ...profileData,
-    ...(user || {}),
-    name: user?.name || profileData?.name || "Citizen",
-    email: user?.email || profileData?.email || "citizen@civicfix.in"
-  }
-
-  // Synchronize reports from backend on mount
-  useEffect(() => {
-    let isMounted = true
-    getReports()
-      .then((liveReports) => {
-        if (isMounted && Array.isArray(liveReports) && liveReports.length > 0) {
-          setReports(liveReports)
-        }
-      })
-      .catch(() => {})
-    return () => {
-      isMounted = false
+      setLoadingReports(true)
+      const data = await getReports()
+      setReports(Array.isArray(data) ? data : [])
+    } catch (err) {
+      console.error("[Dashboard] Failed to fetch complaints:", err.message)
+      setReports([])
+    } finally {
+      setLoadingReports(false)
     }
   }, [])
+
+  // Fetch citizen notifications from MongoDB
+  const fetchNotifications = useCallback(async () => {
+    try {
+      setLoadingNotifs(true)
+      const notifs = await getNotifications()
+      setNotifications(Array.isArray(notifs) ? notifs : [])
+    } catch (err) {
+      console.error("[Dashboard] Failed to fetch notifications:", err.message)
+      setNotifications([])
+    } finally {
+      setLoadingNotifs(false)
+    }
+  }, [])
+
+  // Fetch live citizen profile from MongoDB
+  const fetchProfile = useCallback(async () => {
+    try {
+      const liveUser = await getUserProfile()
+      if (liveUser) {
+        setProfileData(liveUser)
+      }
+    } catch {
+      // User from AuthContext serves as immediate baseline
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchReports()
+    fetchNotifications()
+    fetchProfile()
+  }, [fetchReports, fetchNotifications, fetchProfile])
+
+  // Profile update handler connected to MongoDB
+  const updateProfile = async (updatedFields) => {
+    const res = await serviceUpdateProfile(updatedFields)
+    if (res?.success && res.data) {
+      setProfileData(res.data)
+      return res.data
+    }
+    return null
+  }
+
+  // Active citizen profile dynamically populated from verified MongoDB session
+  const activeUser = {
+    ...profileData,
+    ...(user || {}),
+    name: profileData?.name || user?.name || "Citizen",
+    email: user?.email || profileData?.email || "",
+    phone: profileData?.phone || user?.phone || "+91 98765 43210",
+    city: profileData?.city || user?.city || "Chandigarh",
+    sector: profileData?.sector || user?.sector || "Sector 17",
+    ward: profileData?.ward || user?.ward || "Ward No. 4, MCC",
+    bio: profileData?.bio || user?.bio || "Active resident passionate about neighbourhood improvements and civic maintenance."
+  }
 
   const handleLogout = () => {
     logout()
@@ -131,41 +108,27 @@ export default function DashboardLayout() {
     }
   }
 
+  // Submit report to MongoDB and reload live data
   const addReport = async (newReport) => {
-    // Call service to persist to backend MongoDB
     const res = await createReport(newReport)
-    const savedReport = res?.data || newReport
-
-    setReports((prev) => [savedReport, ...prev.filter((r) => r.id !== savedReport.id)])
-
-    // Also update notification state in memory
-    const autoNotif = {
-      id: `notif-auto-${Date.now()}`,
-      title: "Complaint Registered Successfully",
-      message: `Your complaint #${savedReport.id} (${savedReport.title}) was received and transmitted to ${savedReport.department || "Municipal Wing"}.`,
-      time: "Just now",
-      date: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
-      read: false,
-      type: "submission",
-      reportId: savedReport.id
+    if (res?.success && res.data) {
+      // Refresh both reports and notifications immediately from MongoDB
+      await fetchReports()
+      await fetchNotifications()
+      return res.data
     }
-    setNotifications((prev) => [autoNotif, ...prev])
-    return savedReport
+    throw new Error(res?.error || "Failed to submit report")
   }
 
-  const addNotification = async (newNotif) => {
-    setNotifications((prev) => [newNotif, ...prev])
-    await createNotification(newNotif)
-  }
-
+  // Notification management handlers
   const deleteNotification = async (notifId) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== notifId))
+    setNotifications((prev) => prev.filter((n) => n.id !== notifId && n._id !== notifId))
     await serviceDeleteNotif(notifId)
   }
 
   const markNotificationRead = async (notifId, isRead = true) => {
     setNotifications((prev) =>
-      prev.map((n) => (n.id === notifId ? { ...n, read: isRead } : n))
+      prev.map((n) => (n.id === notifId || n._id === notifId ? { ...n, read: isRead } : n))
     )
     await serviceMarkRead(notifId, isRead)
   }
@@ -209,10 +172,14 @@ export default function DashboardLayout() {
               profileData,
               updateProfile,
               reports,
+              setReports,
+              fetchReports,
+              loadingReports,
               addReport,
               notifications,
               setNotifications,
-              addNotification,
+              fetchNotifications,
+              loadingNotifs,
               deleteNotification,
               markNotificationRead,
               markAllNotificationsRead,

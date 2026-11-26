@@ -4,11 +4,14 @@ import {
   createComplaint,
   getComplaints,
   getMyComplaints,
+  getComplaintStats,
   getComplaintById,
   updateComplaintStatus,
-  upvoteComplaint
+  upvoteComplaint,
+  uploadComplaintImage
 } from "../controllers/complaintController.js"
 import { protect, optionalAuth } from "../middleware/authMiddleware.js"
+import { uploadPhotos, uploadSingleImage } from "../middleware/uploadMiddleware.js"
 
 const router = express.Router()
 
@@ -39,10 +42,12 @@ const createComplaintValidation = [
 ]
 
 // Routes
-router.post("/", protect, createComplaintValidation, createComplaint)
+router.post("/", protect, uploadPhotos, createComplaintValidation, createComplaint)
+router.post("/upload-image", protect, uploadSingleImage, uploadComplaintImage)
 router.get("/", optionalAuth, getComplaints)
 router.get("/my", protect, getMyComplaints)
-router.get("/:id", getComplaintById)
+router.get("/stats", protect, getComplaintStats)
+router.get("/:id", optionalAuth, getComplaintById)
 router.patch("/:id/status", protect, updateComplaintStatus)
 router.post("/:id/upvote", protect, upvoteComplaint)
 

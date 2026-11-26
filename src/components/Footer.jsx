@@ -30,6 +30,7 @@ export default function Footer({ signupUrl, loginUrl }) {
           <h4>Account</h4>
           <TransitionLink to={loginUrl}>Log in</TransitionLink>
           <TransitionLink to={signupUrl}>Create account</TransitionLink>
+          <TransitionLink to="/admin/login">Admin Console</TransitionLink>
         </nav>
       </div>
 

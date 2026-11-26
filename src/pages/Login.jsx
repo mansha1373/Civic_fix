@@ -33,8 +33,62 @@ export default function Login() {
     <AuthLayout
       title="Welcome back."
       subtitle="Log in to track your reports."
-      footer={<>New to CivicFix? <TransitionLink to="/signup">Create an account</TransitionLink></>}
+      footer={
+        <>
+          New to CivicFix? <TransitionLink to="/signup">Create an account</TransitionLink>
+          <span style={{ margin: "0 8px", color: "#e9dfc2" }}>•</span>
+          <TransitionLink to="/admin/login" style={{ fontWeight: 600, color: "#59343B" }}>
+            Admin Portal →
+          </TransitionLink>
+        </>
+      }
     >
+      {/* Role Selection Switcher */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "6px",
+          marginBottom: "16px",
+          padding: "4px",
+          backgroundColor: "#FFF9EA",
+          border: "1px solid #EAE3D5",
+          borderRadius: "14px"
+        }}
+      >
+        <div
+          style={{
+            padding: "8px 12px",
+            borderRadius: "10px",
+            fontSize: "12px",
+            fontWeight: "700",
+            textAlign: "center",
+            backgroundColor: "#59343B",
+            color: "#FFF9EA",
+            boxShadow: "0 1px 2px rgba(0,0,0,0.08)"
+          }}
+        >
+          Citizen / Resident
+        </div>
+        <button
+          type="button"
+          onClick={() => go("/admin/login")}
+          style={{
+            padding: "8px 12px",
+            borderRadius: "10px",
+            border: "none",
+            fontSize: "12px",
+            fontWeight: "700",
+            cursor: "pointer",
+            backgroundColor: "transparent",
+            color: "#59343B",
+            transition: "all 0.15s ease"
+          }}
+        >
+          Municipal Admin →
+        </button>
+      </div>
+
       <GoogleButton onCredential={(cred) => { googleLogin(cred); go("/dashboard") }} />
       <div className="cf-or"><span>or use email</span></div>
       <form className="cf-form" onSubmit={submit} noValidate>

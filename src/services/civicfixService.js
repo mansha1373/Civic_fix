@@ -1,75 +1,73 @@
 /**
  * CivicFix Frontend Data Service
  * 
- * Provides an encapsulated, modular interface for:
- * - Report management (fetch, create, query by ID, update status)
- * - Notification management (fetch, create, mark read, delete)
- * - User profile management (fetch, update)
- * - Settings & preferences management
- * 
- * ARCHITECTURE / BACKEND READINESS:
- * Each function is designed with async signatures and standard request/response
- * contracts. When transitioning to a production backend (Node.js/Express/MongoDB),
- * these localStorage calls can be swapped for REST API fetch() / axios calls
- * with zero modifications to the UI presentation components.
+ * Provides an authenticated, modular interface for:
+ * - Complaint management (fetch my complaints, community complaints, query by ID, submit report)
+ * - Notification management (fetch real events, mark read, mark all read, delete)
+ * - User profile management (fetch live profile from MongoDB, update permitted fields)
+ * - User settings management (persist notification & account preferences in MongoDB Atlas)
+ * - Statistics & Community Impact (real database aggregation)
  */
 
-import { mockReports, mockNotifications, mockCurrentUser } from "../data/mockReports.js"
 import api from "./api.js"
 
-const STORAGE_KEYS = {
-  REPORTS: "civicfix_custom_reports",
-  NOTIFICATIONS: "civicfix_custom_notifications",
-  PROFILE: "civicfix_user_profile",
-  SETTINGS: "civicfix_user_settings"
-}
-
 // ==========================================
-// 1. REPORT SERVICE METHODS
+// 1. COMPLAINT SERVICE METHODS
 // ==========================================
 
 /**
- * Fetch all reports (custom citizen reports from backend MongoDB + regional mock reports)
+ * Fetch reports submitted strictly by the authenticated citizen
  */
 export async function getReports() {
   try {
-    // 1. Try fetching live reports from backend MongoDB
-    const res = await api.get("/complaints")
+    const res = await api.get("/complaints/my")
     if (res.data?.success && Array.isArray(res.data.complaints)) {
-      const backendComplaints = res.data.complaints
-      const backendIds = new Set(backendComplaints.map((r) => r.id))
-      const remainingMock = mockReports.filter((r) => !backendIds.has(r.id))
-      const merged = [...backendComplaints, ...remainingMock]
-      try {
-        localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(backendComplaints))
-      } catch {
-        // quota handled
-      }
-      return merged
+      return res.data.complaints
     }
+    return []
   } catch (err) {
-    console.warn("[CivicFix Service] Backend unreachable for complaints, trying local cache:", err.message)
+    console.error("[CivicFix Service] Failed to fetch citizen reports:", err.message)
+    throw err
   }
-
-  // 2. Fallback to localStorage cache and mock dataset
-  try {
-    const raw = localStorage.getItem(STORAGE_KEYS.REPORTS)
-    if (raw) {
-      const customReports = JSON.parse(raw)
-      if (Array.isArray(customReports)) {
-        const customIds = new Set(customReports.map((r) => r.id))
-        const remainingMock = mockReports.filter((r) => !customIds.has(r.id))
-        return [...customReports, ...remainingMock]
-      }
-    }
-  } catch (err) {
-    console.warn("[CivicFix Service] Failed to read reports from storage, falling back to mock dataset:", err)
-  }
-  return mockReports
 }
 
 /**
- * Fetch a specific report by its ticket ID
+ * Fetch all community reports for public community map and regional exploration
+ */
+export async function getCommunityReports() {
+  try {
+    const res = await api.get("/complaints")
+    if (res.data?.success && Array.isArray(res.data.complaints)) {
+      return res.data.complaints
+    }
+    return []
+  } catch (err) {
+    console.error("[CivicFix Service] Failed to fetch community reports:", err.message)
+    return []
+  }
+}
+
+/**
+ * Fetch aggregated statistics from MongoDB (both user-specific and community-wide)
+ */
+export async function getComplaintStats() {
+  try {
+    const res = await api.get("/complaints/stats")
+    if (res.data?.success) {
+      return {
+        userStats: res.data.userStats,
+        communityStats: res.data.communityStats
+      }
+    }
+    return null
+  } catch (err) {
+    console.error("[CivicFix Service] Failed to fetch complaint statistics:", err.message)
+    return null
+  }
+}
+
+/**
+ * Fetch a specific complaint by ticket ID or MongoDB _id
  */
 export async function getReportById(id) {
   try {
@@ -77,22 +75,59 @@ export async function getReportById(id) {
     if (res.data?.success && res.data.complaint) {
       return res.data.complaint
     }
-  } catch {
-    // Fallback to local list
+    throw new Error(res.data?.message || `No complaint found with ID "${id}"`)
+  } catch (err) {
+    console.error(`[CivicFix Service] Error retrieving report #${id}:`, err.message)
+    throw err
   }
-  const allReports = await getReports()
-  return allReports.find((r) => r.id === id) || null
 }
 
 /**
- * Create and persist a new civic report via backend MongoDB
+ * Upload a single photo directly to Cloudinary via backend SDK
+ */
+export async function uploadImageToCloudinary(file) {
+  const formData = new FormData()
+  formData.append("image", file)
+  const res = await api.post("/complaints/upload-image", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data"
+    }
+  })
+  return res.data
+}
+
+/**
+ * Create and persist a new civic complaint in MongoDB Atlas with Cloudinary images
  */
 export async function createReport(newReport) {
   try {
-    let savedReport = newReport
+    let res
+    if (newReport.rawFiles && Array.isArray(newReport.rawFiles) && newReport.rawFiles.length > 0) {
+      const formData = new FormData()
+      formData.append("title", newReport.title)
+      formData.append("description", newReport.description)
+      formData.append("category", newReport.category)
+      formData.append("categoryKey", newReport.categoryKey || "other")
+      formData.append("location", newReport.location)
+      formData.append("coordinates", JSON.stringify(newReport.coordinates || { lat: 30.7415, lng: 76.7794 }))
+      formData.append("pincode", newReport.pincode || "160017")
+      formData.append("urgency", newReport.urgency || "High")
 
-    // 1. Send complaint to Node/Express/MongoDB backend
-    try {
+      // Attach file buffers under "photos" field
+      newReport.rawFiles.forEach((file) => {
+        formData.append("photos", file)
+      })
+
+      if (newReport.image) {
+        formData.append("image", newReport.image)
+      }
+
+      res = await api.post("/complaints", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
+      })
+    } else {
       const payload = {
         title: newReport.title,
         description: newReport.description,
@@ -106,239 +141,157 @@ export async function createReport(newReport) {
         image: newReport.image
       }
 
-      const res = await api.post("/complaints", payload)
-      if (res.data?.success && res.data.complaint) {
-        savedReport = res.data.complaint
-      }
-    } catch (apiErr) {
-      console.warn("[CivicFix Service] Backend API error, using local fallback:", apiErr.message)
+      res = await api.post("/complaints", payload)
     }
 
-    // 2. Cache in localStorage for immediate offline persistence
-    try {
-      const raw = localStorage.getItem(STORAGE_KEYS.REPORTS)
-      const existing = raw ? JSON.parse(raw) : []
-      const updatedCustom = [savedReport, ...existing.filter((r) => r.id !== savedReport.id)]
-      localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(updatedCustom))
-    } catch (quotaErr) {
-      console.warn("[CivicFix Service] LocalStorage quota exceeded:", quotaErr)
+    if (res.data?.success && res.data.complaint) {
+      return { success: true, data: res.data.complaint }
     }
-
-    // 3. Automatically generate confirmation notification
-    await createNotification({
-      id: `notif-auto-${Date.now()}`,
-      title: "Complaint Registered Successfully",
-      message: `Your complaint #${savedReport.id} (${savedReport.title}) was received and transmitted to ${savedReport.department || "Municipal Wing"}.`,
-      time: "Just now",
-      date: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
-      read: false,
-      type: "submission",
-      reportId: savedReport.id
-    })
-
-    return { success: true, data: savedReport }
+    throw new Error(res.data?.message || "Failed to create complaint")
   } catch (err) {
     console.error("[CivicFix Service] Failed to create report:", err)
-    return { success: false, error: err.message, data: newReport }
-  }
-}
-
-/**
- * Update the status and add an administrative note to a report
- */
-export async function updateReportStatus(reportId, newStatus, adminRemark = "") {
-  try {
-    const allReports = await getReports()
-    const now = new Date()
-    const formattedDate = now.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })
-    const formattedTime = now.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })
-
-    const updated = allReports.map((r) => {
-      if (r.id !== reportId) return r
-
-      const newTimelineStep = {
-        stage: newStatus,
-        status: newStatus,
-        step: `Status Updated to ${newStatus}`,
-        date: `${formattedDate}, ${formattedTime}`,
-        done: true,
-        desc: `Municipal system updated ticket status to ${newStatus}.`,
-        adminRemarks: adminRemark || `Status update logged by duty officer.`
-      }
-
-      return {
-        ...r,
-        status: newStatus,
-        lastUpdated: formattedDate,
-        timeline: [...(r.timeline || []), newTimelineStep]
-      }
-    })
-
-    const customOnly = updated.filter((r) => r.isUserCreated)
-    localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(customOnly))
-
-    return { success: true, data: updated.find((r) => r.id === reportId) }
-  } catch (err) {
-    console.error("[CivicFix Service] Failed to update report status:", err)
-    return { success: false, error: err.message }
+    return {
+      success: false,
+      error: err.response?.data?.message || err.message || "Complaint submission failed"
+    }
   }
 }
 
 // ==========================================
-// 2. NOTIFICATION SERVICE METHODS
+// 2. NOTIFICATION SERVICE METHODS (MONGODB)
 // ==========================================
 
 /**
- * Fetch all notifications
+ * Fetch live notifications from MongoDB for the authenticated citizen
  */
 export async function getNotifications() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed)) return parsed
+    const res = await api.get("/notifications")
+    if (res.data?.success && Array.isArray(res.data.notifications)) {
+      return res.data.notifications
     }
+    return []
   } catch (err) {
-    console.warn("[CivicFix Service] Failed to read notifications from storage:", err)
-  }
-  return mockNotifications
-}
-
-/**
- * Create a new notification
- */
-export async function createNotification(notifData) {
-  try {
-    const existing = await getNotifications()
-    const updated = [notifData, ...existing]
-    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated))
-    return { success: true, data: notifData }
-  } catch (err) {
-    console.error("[CivicFix Service] Failed to create notification:", err)
-    return { success: false, error: err.message }
+    console.error("[CivicFix Service] Failed to load notifications:", err.message)
+    return []
   }
 }
 
 /**
- * Mark a specific notification as read or unread
+ * Mark a specific notification as read in MongoDB
  */
 export async function markNotificationRead(notifId, isRead = true) {
   try {
-    const existing = await getNotifications()
-    const updated = existing.map((n) => (n.id === notifId ? { ...n, read: isRead } : n))
-    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated))
-    return { success: true, data: updated }
+    const res = await api.patch(`/notifications/${notifId}/read`, { read: isRead })
+    return { success: true, data: res.data?.notification }
   } catch (err) {
-    console.error("[CivicFix Service] Failed to toggle notification read state:", err)
+    console.error("[CivicFix Service] Failed to update notification read status:", err.message)
     return { success: false, error: err.message }
   }
 }
 
 /**
- * Mark all notifications as read
+ * Mark all notifications as read in MongoDB
  */
 export async function markAllNotificationsRead() {
   try {
-    const existing = await getNotifications()
-    const updated = existing.map((n) => ({ ...n, read: true }))
-    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated))
-    return { success: true, data: updated }
+    const res = await api.patch("/notifications/read-all")
+    return { success: true, message: res.data?.message }
   } catch (err) {
-    console.error("[CivicFix Service] Failed to mark all notifications read:", err)
+    console.error("[CivicFix Service] Failed to mark all notifications read:", err.message)
     return { success: false, error: err.message }
   }
 }
 
 /**
- * Delete a specific notification
+ * Delete a notification from MongoDB
  */
 export async function deleteNotification(notifId) {
   try {
-    const existing = await getNotifications()
-    const updated = existing.filter((n) => n.id !== notifId)
-    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(updated))
-    return { success: true, data: updated }
+    const res = await api.delete(`/notifications/${notifId}`)
+    return { success: true, message: res.data?.message }
   } catch (err) {
-    console.error("[CivicFix Service] Failed to delete notification:", err)
+    console.error("[CivicFix Service] Failed to delete notification:", err.message)
     return { success: false, error: err.message }
   }
 }
 
 // ==========================================
-// 3. PROFILE SERVICE METHODS
+// 3. PROFILE SERVICE METHODS (MONGODB)
 // ==========================================
 
 /**
- * Fetch citizen profile data
+ * Fetch citizen profile data from MongoDB
  */
 export async function getUserProfile() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.PROFILE)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      return { ...mockCurrentUser, ...parsed }
+    const res = await api.get("/auth/me")
+    if (res.data?.success && res.data.user) {
+      return res.data.user
     }
+    return null
   } catch (err) {
-    console.warn("[CivicFix Service] Failed to read profile from storage:", err)
+    console.error("[CivicFix Service] Failed to fetch citizen profile:", err.message)
+    return null
   }
-  return mockCurrentUser
 }
 
 /**
- * Update citizen profile data
+ * Update citizen profile in MongoDB Atlas
  */
 export async function updateUserProfile(profileUpdates) {
   try {
-    const current = await getUserProfile()
-    const merged = { ...current, ...profileUpdates }
-    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(merged))
-    return { success: true, data: merged }
+    const res = await api.put("/auth/profile", profileUpdates)
+    if (res.data?.success && res.data.user) {
+      return { success: true, data: res.data.user }
+    }
+    throw new Error(res.data?.message || "Profile update failed")
   } catch (err) {
-    console.error("[CivicFix Service] Failed to save profile:", err)
+    console.error("[CivicFix Service] Failed to save profile to MongoDB:", err.message)
     return { success: false, error: err.message }
   }
 }
 
 // ==========================================
-// 4. SETTINGS SERVICE METHODS
+// 4. SETTINGS SERVICE METHODS (MONGODB)
 // ==========================================
 
 const DEFAULT_SETTINGS = {
   emailAlerts: true,
-  inAppAlerts: true,
   smsUpdates: true,
   weeklyDigest: false,
   language: "en",
-  publicVisibility: true
+  locationPrivacy: true
 }
 
 /**
- * Fetch settings and notification preferences
+ * Fetch settings and notification preferences from MongoDB
  */
 export async function getUserSettings() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.SETTINGS)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      return { ...DEFAULT_SETTINGS, ...parsed }
+    const res = await api.get("/auth/me")
+    if (res.data?.success && res.data.user?.settings) {
+      return { ...DEFAULT_SETTINGS, ...res.data.user.settings }
     }
+    return DEFAULT_SETTINGS
   } catch (err) {
-    console.warn("[CivicFix Service] Failed to read settings from storage:", err)
+    console.error("[CivicFix Service] Failed to read settings from backend:", err.message)
+    return DEFAULT_SETTINGS
   }
-  return DEFAULT_SETTINGS
 }
 
 /**
- * Update settings and notification preferences
+ * Update settings and notification preferences in MongoDB Atlas
  */
 export async function updateUserSettings(settingsUpdates) {
   try {
-    const current = await getUserSettings()
-    const merged = { ...current, ...settingsUpdates }
-    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(merged))
-    return { success: true, data: merged }
+    const res = await api.put("/auth/settings", settingsUpdates)
+    if (res.data?.success && res.data.settings) {
+      return { success: true, data: res.data.settings }
+    }
+    throw new Error(res.data?.message || "Settings update failed")
   } catch (err) {
-    console.error("[CivicFix Service] Failed to save settings:", err)
+    console.error("[CivicFix Service] Failed to save settings to MongoDB:", err.message)
     return { success: false, error: err.message }
   }
 }

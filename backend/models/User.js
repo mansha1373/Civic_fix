@@ -56,9 +56,21 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: ""
     },
+    bio: {
+      type: String,
+      trim: true,
+      default: "Active resident passionate about neighbourhood improvements and civic maintenance."
+    },
+    settings: {
+      emailAlerts: { type: Boolean, default: true },
+      smsUpdates: { type: Boolean, default: true },
+      weeklyDigest: { type: Boolean, default: false },
+      language: { type: String, default: "en" },
+      locationPrivacy: { type: Boolean, default: true }
+    },
     role: {
       type: String,
-      enum: ["citizen"],
+      enum: ["citizen", "admin"],
       default: "citizen" // Default public registrations to citizen role; prevents admin creation via signup
     }
   },
@@ -100,6 +112,14 @@ userSchema.methods.toSafeObject = function () {
     sector: this.sector,
     ward: this.ward,
     profileImage: this.profileImage,
+    bio: this.bio || "Active resident passionate about neighbourhood improvements and civic maintenance.",
+    settings: this.settings || {
+      emailAlerts: true,
+      smsUpdates: true,
+      weeklyDigest: false,
+      language: "en",
+      locationPrivacy: true
+    },
     createdAt: this.createdAt,
     updatedAt: this.updatedAt
   }

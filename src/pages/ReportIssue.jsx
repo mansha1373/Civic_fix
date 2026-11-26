@@ -125,8 +125,11 @@ export default function ReportIssue() {
       minute: "2-digit"
     })
 
+    const rawFiles = photos.map((p) => p.file).filter(Boolean)
+
     const newReport = {
       id: newId,
+      rawFiles,
       title: title.trim(),
       category: selectedCatObj.label,
       categoryKey: category,
@@ -199,25 +202,35 @@ export default function ReportIssue() {
     }
 
     // Add report to state, localStorage, and MongoDB backend
-    const saved = await addReport(newReport)
+    try {
+      const saved = await addReport(newReport)
 
-    // Generate a notification for the citizen
-    if (addNotification) {
-      addNotification({
-        id: `notif-${Date.now()}`,
-        title: "Complaint Logged",
-        message: `Your report #${saved?.id || newId} (${title.slice(0, 35)}...) has been submitted to ${selectedCatObj.department}.`,
-        time: "Just now",
-        read: false,
-        type: "review",
-        reportId: saved?.id || newId,
-        isUserCreated: true
-      })
+      // Generate a notification for the citizen
+      if (addNotification) {
+        addNotification({
+          id: `notif-${Date.now()}`,
+          title: "Complaint Logged",
+          message: `Your report #${saved?.id || newId} (${title.slice(0, 35)}...) has been submitted to ${selectedCatObj.department}.`,
+          time: "Just now",
+          read: false,
+          type: "review",
+          reportId: saved?.id || newId,
+          isUserCreated: true
+        })
+      }
+
+      setIsSubmitting(false)
+      setSubmittedReport(saved || newReport)
+      window.scrollTo({ top: 100, behavior: "smooth" })
+    } catch (err) {
+      console.error("[Report Submission Error]:", err)
+      setIsSubmitting(false)
+      setErrors((prev) => ({
+        ...prev,
+        submit: err.message || "Failed to submit complaint to the municipal server. Please check your connection and try again."
+      }))
+      window.scrollTo({ top: 150, behavior: "smooth" })
     }
-
-    setIsSubmitting(false)
-    setSubmittedReport(saved || newReport)
-    window.scrollTo({ top: 100, behavior: "smooth" })
   }
 
   // Handle filing another report
@@ -267,7 +280,11 @@ export default function ReportIssue() {
             </div>
             <div className="summary-row">
               <span>Location:</span>
-              <strong>{submittedReport.location}</strong>
+              <strong>
+                {typeof submittedReport.location === "object"
+                  ? (submittedReport.location?.address || submittedReport.location?.sector || "Sector 17, Chandigarh")
+                  : (submittedReport.location || "Sector 17, Chandigarh")}
+              </strong>
             </div>
             <div className="summary-row">
               <span>GPS Geotag:</span>
@@ -556,6 +573,29 @@ export default function ReportIssue() {
             </div>
           </div>
         </section>
+
+        {/* Submission Error Banner */}
+        {errors.submit && (
+          <div
+            role="alert"
+            style={{
+              padding: "14px 18px",
+              backgroundColor: "#FAECEE",
+              border: "1px solid #EFC3C6",
+              borderRadius: "14px",
+              color: "#8C2329",
+              fontSize: "13px",
+              fontWeight: 600,
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginTop: "20px"
+            }}
+          >
+            <Icon name="alertCircle" size={18} color="#8C2329" />
+            <span>{errors.submit}</span>
+          </div>
+        )}
 
         {/* SECTION 6: Form Actions */}
         <div className="cf-form-actions-bar">

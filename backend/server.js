@@ -1,16 +1,16 @@
+import "./config/env.js"
 import express from "express"
-import dotenv from "dotenv"
 import cors from "cors"
 import cookieParser from "cookie-parser"
 import helmet from "helmet"
 import rateLimit from "express-rate-limit"
 import { connectDB } from "./config/db.js"
+import { autoProvisionAdmin } from "./utils/adminProvisioner.js"
 import authRoutes from "./routes/authRoutes.js"
 import complaintRoutes from "./routes/complaintRoutes.js"
+import notificationRoutes from "./routes/notificationRoutes.js"
+import adminRoutes from "./routes/adminRoutes.js"
 import { notFound, errorHandler } from "./middleware/errorMiddleware.js"
-
-// Load environment variables
-dotenv.config()
 
 const app = express()
 const PORT = process.env.PORT || 5001
@@ -75,6 +75,12 @@ app.use("/api/auth", authLimiter, authRoutes)
 // Mount Complaint routes
 app.use("/api/complaints", complaintRoutes)
 
+// Mount Notification routes
+app.use("/api/notifications", notificationRoutes)
+
+// Mount Admin routes (strictly protected for admin role)
+app.use("/api/admin", adminRoutes)
+
 // Error handling middleware
 app.use(notFound)
 app.use(errorHandler)
@@ -84,6 +90,9 @@ export async function startServer() {
   try {
     // Connect to MongoDB before accepting incoming requests
     await connectDB()
+
+    // Ensure authorized administrator exists
+    await autoProvisionAdmin()
 
     const server = app.listen(PORT, () => {
       console.log(`[CivicFix Server] Running in ${process.env.NODE_ENV || "development"} mode on port ${PORT}`)

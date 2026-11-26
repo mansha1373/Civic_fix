@@ -3,7 +3,10 @@ import { body } from "express-validator"
 import {
   registerUser,
   loginUser,
+  loginAdmin,
   getMe,
+  updateProfile,
+  updateSettings,
   logoutUser
 } from "../controllers/authController.js"
 import { protect } from "../middleware/authMiddleware.js"
@@ -43,7 +46,11 @@ const loginValidation = [
 // Routes
 router.post("/register", registerValidation, registerUser)
 router.post("/login", loginValidation, loginUser)
+router.post("/admin-login", loginValidation, loginAdmin)
+router.post("/admin/login", loginValidation, loginAdmin)
 router.get("/me", protect, getMe)
+router.put("/profile", protect, updateProfile)
+router.put("/settings", protect, updateSettings)
 router.post("/logout", logoutUser)
 
 export default router

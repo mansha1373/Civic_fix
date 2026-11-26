@@ -41,19 +41,6 @@ export default function useScrollAnimations(rootRef) {
       gsap.from(".cf-footer", { y: 25, ease: "none", scrollTrigger: { trigger: ".cf-footer", start: "top bottom", end: "top 65%", scrub: 1.8 } })
       gsap.from(".cf-impact-head", { y: 18, opacity: 0, scrollTrigger: { trigger: ".cf-impact", start: "top 95%", end: "top 65%", scrub: 1.8 } })
 
-      // Pinned horizontal "how it works" track (desktop only)
-      const mm = gsap.matchMedia()
-      mm.add("(min-width: 768px)", () => {
-        const track = el.querySelector(".cf-track")
-        gsap.to(track, {
-          x: () => -(track.scrollWidth - el.clientWidth), ease: "none",
-          scrollTrigger: {
-            trigger: ".cf-steps-inner", pin: true, scrub: 2, start: "top top",
-            end: () => "+=" + Math.round(track.scrollWidth * 1.6), invalidateOnRefresh: true,
-          },
-        })
-      })
-
       gsap.to(".cf-cloud", { x: 40, ease: "none", scrollTrigger: { trigger: ".cf-steps", start: "top bottom", end: "bottom top", scrub: 1.8 } })
     }, el)
 

@@ -4,10 +4,10 @@ import { useAuth } from "../auth/AuthContext.jsx"
 
 /**
  * ProtectedRoute Guard
- * Ensures only authenticated users can access citizen dashboard routes.
- * Displays a lightweight brand-styled spinner during the initial session check.
+ * Ensures only authenticated users with authorized roles can access routes.
+ * Supports role-based access for "citizen" and "admin".
  */
-export default function ProtectedRoute({ children }) {
+export default function ProtectedRoute({ children, allowedRoles = ["citizen"] }) {
   const { user, loading } = useAuth()
   const location = useLocation()
 
@@ -38,15 +38,28 @@ export default function ProtectedRoute({ children }) {
           />
           <style>{`@keyframes cf-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
           <p style={{ fontSize: "14px", fontWeight: 600, margin: 0 }}>
-            Verifying citizen session...
+            Verifying security session...
           </p>
         </div>
       </div>
     )
   }
 
+  // Not authenticated
   if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />
+    const isTargetAdmin = allowedRoles.includes("admin") && !allowedRoles.includes("citizen")
+    const loginPath = isTargetAdmin ? "/admin/login" : "/login"
+    return <Navigate to={loginPath} state={{ from: location }} replace />
+  }
+
+  // Authenticated but unauthorized role
+  const userRole = user.role || "citizen"
+  if (!allowedRoles.includes(userRole)) {
+    if (userRole === "admin") {
+      return <Navigate to="/admin" replace />
+    } else {
+      return <Navigate to="/dashboard" replace />
+    }
   }
 
   return children

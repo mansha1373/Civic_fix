@@ -171,33 +171,78 @@ complaintSchema.index({
   complaintId: "text"
 })
 
-// Transform to safe object matching the React dashboard's report structure
+// Transform to safe object matching both Citizen & Admin dashboard expectations
 complaintSchema.methods.toSafeObject = function () {
   const obj = this.toObject()
+  const isPopulatedUser = this.user && typeof this.user === "object" && this.user.name
+
+  const citizenObj = isPopulatedUser
+    ? {
+        id: this.user._id ? this.user._id.toString() : this.user.id,
+        name: this.user.name,
+        email: this.user.email,
+        phone: this.user.phone || "+91 98000 00000",
+        avatar: this.user.profileImage || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+        address: this.user.address || this.user.sector || "Sector 17, Chandigarh"
+      }
+    : {
+        name: "Verified Citizen",
+        email: "citizen@civicfix.in",
+        phone: "+91 98000 00000",
+        avatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80",
+        address: "Sector 17, Chandigarh"
+      }
+
+  const rawLocation = this.location || "Sector 17, Chandigarh"
+  const locationObj = {
+    address: rawLocation,
+    sector: rawLocation.toLowerCase().includes("sector")
+      ? rawLocation.split(",")[0].trim()
+      : "Sector 17"
+  }
+
   return {
     ...obj,
     id: this.complaintId,
     _id: this._id.toString(),
+    complaintId: this.complaintId,
     userId: this.user ? (this.user._id ? this.user._id.toString() : this.user.toString()) : null,
-    date: this.createdAt ? new Date(this.createdAt).toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric"
-    }) : "Recent",
-    submittedDate: this.createdAt ? new Date(this.createdAt).toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric"
-    }) : "Recent",
-    lastUpdated: this.updatedAt ? new Date(this.updatedAt).toLocaleDateString("en-GB", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric"
-    }) : "Recent",
-    time: this.createdAt ? new Date(this.createdAt).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit"
-    }) : "10:00 AM"
+    citizen: citizenObj,
+    location: rawLocation,
+    rawLocation: rawLocation,
+    locationObj: locationObj,
+    address: rawLocation,
+    sector: locationObj.sector,
+    priority: this.urgency || "High",
+    urgency: this.urgency || "High",
+    submissionDate: this.createdAt ? this.createdAt.toISOString() : new Date().toISOString(),
+    date: this.createdAt
+      ? new Date(this.createdAt).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        })
+      : "Recent",
+    submittedDate: this.createdAt
+      ? new Date(this.createdAt).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        })
+      : "Recent",
+    lastUpdated: this.updatedAt
+      ? new Date(this.updatedAt).toLocaleDateString("en-GB", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric"
+        })
+      : "Recent",
+    time: this.createdAt
+      ? new Date(this.createdAt).toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit"
+        })
+      : "10:00 AM"
   }
 }
 

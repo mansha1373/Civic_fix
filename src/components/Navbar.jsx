@@ -13,7 +13,12 @@ export default function Navbar({ loginUrl, signupUrl }) {
       </div>
       <div className="cf-actions">
         {user ? (
-          <TransitionLink className="cf-button" to="/dashboard">Dashboard</TransitionLink>
+          <TransitionLink
+            className="cf-button"
+            to={user.role === "admin" ? "/admin" : "/dashboard"}
+          >
+            {user.role === "admin" ? "Admin Console" : "Dashboard"}
+          </TransitionLink>
         ) : (
           <>
             <TransitionLink to={loginUrl}>Log in</TransitionLink>

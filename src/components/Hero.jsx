@@ -40,7 +40,7 @@ export default function Hero({ heading, signupUrl, bannerImage, pineImage }) {
           <p>Small action. Real impact.</p>
         </div>
 
-        <div className="cf-scroll-note"><span className="cf-scroll-line" /> SCROLL TO MOVE YOUR COMMUNITY FORWARD</div>
+      
         <div className="cf-banner-caption">YOUR STREET. YOUR VOICE. OUR INDIA.</div>
         <div className="cf-hero-stamp">NOT JUST<br />A REPORT.<br /><b>A START.</b></div>
         <div className="cf-action-ribbon"><span>01 / SPOT A PROBLEM</span><span>02 / MAKE IT HEARD</span><span>03 / MOVE INDIA FORWARD</span></div>

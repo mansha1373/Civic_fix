@@ -69,6 +69,25 @@ export function AuthProvider({ children }) {
   }
 
   /**
+   * Log in administrator with credentials via real backend API
+   */
+  const adminLogin = async (email, password) => {
+    const res = await api.post("/auth/admin-login", {
+      email: email.trim().toLowerCase(),
+      password
+    })
+
+    if (res.data?.success && res.data?.user) {
+      if (res.data.token) {
+        localStorage.setItem("civicfix_token", res.data.token)
+      }
+      setUser(res.data.user)
+      return res.data.user
+    }
+    throw new Error(res.data?.message || "Administrator authentication failed")
+  }
+
+  /**
    * Log out user & invalidate cookie session
    */
   const logout = async () => {
@@ -133,6 +152,7 @@ export function AuthProvider({ children }) {
         isAuthenticated: Boolean(user),
         signup,
         login,
+        adminLogin,
         logout,
         refreshUser,
         googleLogin
